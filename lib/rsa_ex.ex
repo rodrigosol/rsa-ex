@@ -1,8 +1,8 @@
 defmodule RsaEx do
   alias RsaEx.{RSAPrivateKey, RSAPublicKey}
 
-  @type private_key :: String.t
-  @type public_key :: String.t
+  @type private_key :: String.t()
+  @type public_key :: String.t()
 
   @doc """
   Generates RSA private key of {bits} size. Default is 2048.
@@ -11,7 +11,7 @@ defmodule RsaEx do
   @spec generate_private_key :: {atom, private_key}
   def generate_private_key(bits \\ "2048") do
     private_key = "ExPrivateKey.pem"
-    {_, 0} = System.cmd "openssl", [ "genrsa", "-out", private_key, bits], [stderr_to_stdout: true]
+    {_, 0} = System.cmd("openssl", ["genrsa", "-out", private_key, bits], stderr_to_stdout: true)
     {:ok, priv} = File.read(private_key)
     File.rm!(private_key)
 
@@ -28,8 +28,14 @@ defmodule RsaEx do
     private_key_name = "ExPrivateKey.pem"
     public_key_name = "ExPublicKey.pem"
     File.write("./#{private_key_name}", private_key)
-    {_, 0} = System.cmd "openssl",
-     [ "rsa", "-pubout", "-in" , private_key_name, "-out", public_key_name ], [stderr_to_stdout: true]
+
+    {_, 0} =
+      System.cmd(
+        "openssl",
+        ["rsa", "-pubout", "-in", private_key_name, "-out", public_key_name],
+        stderr_to_stdout: true
+      )
+
     {:ok, pub} = File.read(public_key_name)
 
     File.rm!(private_key_name)
@@ -47,9 +53,16 @@ defmodule RsaEx do
     private_key_name = "ExPrivateKey.pem"
     public_key_name = "ExPublicKey.pem"
 
-    {_, 0} = System.cmd "openssl", [ "genrsa", "-out", private_key_name, bits], [stderr_to_stdout: true]
-    {_, 0} = System.cmd "openssl",
-      [ "rsa", "-pubout", "-in" , private_key_name, "-out", public_key_name ], [stderr_to_stdout: true]
+    {_, 0} =
+      System.cmd("openssl", ["genrsa", "-out", private_key_name, bits], stderr_to_stdout: true)
+
+    {_, 0} =
+      System.cmd(
+        "openssl",
+        ["rsa", "-pubout", "-in", private_key_name, "-out", public_key_name],
+        stderr_to_stdout: true
+      )
+
     {:ok, priv} = File.read(private_key_name)
     {:ok, pub} = File.read(public_key_name)
 
@@ -64,7 +77,7 @@ defmodule RsaEx do
       iex> {:ok, signature} = RsaEx.sign(message, rsa_private_key)
       {:ok, <<...>>}
   """
-  @spec sign(String.t, private_key, atom) :: {atom, binary}
+  @spec sign(String.t(), private_key, atom) :: {atom, binary}
   def sign(message, private_key, digest_type \\ :sha256) do
     {:ok, priv_key} = loads(private_key)
     {:ok, priv_key_seq} = RSAPrivateKey.as_sequence(priv_key)
@@ -76,7 +89,7 @@ defmodule RsaEx do
       iex> {:ok, valid} = RsaEx.verify(message, signature, rsa_public_key
       {:ok, true}
   """
-  @spec verify(String.t, binary, public_key, atom) :: {atom, boolean}
+  @spec verify(String.t(), binary, public_key, atom) :: {atom, boolean}
   def verify(message, signature, public_key, digest_type \\ :sha256) do
     {:ok, pub_key} = loads(public_key)
     {:ok, pub_key_seq} = RsaEx.RSAPublicKey.as_sequence(pub_key)
@@ -90,11 +103,12 @@ defmodule RsaEx do
       iex> {:ok, cipher_text} = RsaEx.encrypt(clear_text, {:public_key, rsa_public_key})
       {:ok, "Lmbv...HQ=="}
   """
-  @spec encrypt(String.t, {:public_key, public_key}) :: {atom, String.t}
+  @spec encrypt(String.t(), {:public_key, public_key}) :: {atom, String.t()}
   def encrypt(message, {:public_key, public_key}) do
     {:ok, pub_key} = loads(public_key)
     {:ok, pub_key_seq} = RsaEx.RSAPublicKey.as_sequence(pub_key)
-    {:ok, :public_key.encrypt_public(message, pub_key_seq)} |> Base.encode64
+    encrypted = :public_key.encrypt_public(message, pub_key_seq)
+    {:ok, Base.encode64(encrypted)}
   end
 
   @doc """
@@ -104,11 +118,12 @@ defmodule RsaEx do
       iex> {:ok, cipher_text} = RsaEx.encrypt(clear_text, {:private_key, rsa_private_key})
       {:ok, "Lmbv...HQ=="}
   """
-  @spec encrypt(String.t, {:private_key, private_key}) :: {atom, String.t}
+  @spec encrypt(String.t(), {:private_key, private_key}) :: {atom, String.t()}
   def encrypt(message, {:private_key, private_key}) do
     {:ok, priv_key} = loads(private_key)
     {:ok, priv_key_seq} = RsaEx.RSAPrivateKey.as_sequence(priv_key)
-    {:ok, :public_key.encrypt_private(message, priv_key_seq)} |> url_encode64
+    encrypted = :public_key.encrypt_private(message, priv_key_seq)
+    {:ok, Base.encode64(encrypted)}
   end
 
   @doc """
@@ -118,12 +133,13 @@ defmodule RsaEx do
       iex> {:ok, cipher_text} = RsaEx.encrypt(clear_text, rsa_public_key)
       {:ok, "Lmbv...HQ=="}
   """
-  @spec encrypt(String.t, public_key) :: {atom, String.t}
+  @spec encrypt(String.t(), public_key) :: {atom, String.t()}
   @deprecated "Use encrypt/2 with tuple {:public_key, public_key} instead"
   def encrypt(message, public_key) do
     {:ok, pub_key} = loads(public_key)
     {:ok, pub_key_seq} = RsaEx.RSAPublicKey.as_sequence(pub_key)
-    {:ok, :public_key.encrypt_public(message, pub_key_seq)} |> url_encode64
+    encrypted = :public_key.encrypt_public(message, pub_key_seq)
+    {:ok, Base.encode64(encrypted)}
   end
 
   @doc """
@@ -131,9 +147,9 @@ defmodule RsaEx do
       iex(8)> {:ok, decrypted_clear_text} = RsaEx.decrypt(cipher_text, {:private_key, rsa_private_key})
       {:ok, "Important message"}
   """
-  @spec decrypt(String.t, {:private_key, private_key}) :: {atom, String.t}
+  @spec decrypt(String.t(), {:private_key, private_key}) :: {atom, String.t()}
   def decrypt(cipher_msg, {:private_key, private_key}) do
-    {:ok, cipher_bytes} = Base.url_decode64(cipher_msg)
+    {:ok, cipher_bytes} = Base.decode64(cipher_msg)
     {:ok, priv_key} = loads(private_key)
     {:ok, priv_key_seq} = RSAPrivateKey.as_sequence(priv_key)
     {:ok, :public_key.decrypt_private(cipher_bytes, priv_key_seq)}
@@ -144,9 +160,9 @@ defmodule RsaEx do
       iex(8)> {:ok, decrypted_clear_text} = RsaEx.decrypt(cipher_text, {:public_key, rsa_public_key})
       {:ok, "Important message"}
   """
-  @spec decrypt(String.t, {:public_key, public_key}) :: {atom, String.t}
+  @spec decrypt(String.t(), {:public_key, public_key}) :: {atom, String.t()}
   def decrypt(cipher_msg, {:public_key, public_key}) do
-    {:ok, cipher_bytes} = Base.url_decode64(cipher_msg)
+    {:ok, cipher_bytes} = Base.decode64(cipher_msg)
     {:ok, pub_key} = loads(public_key)
     {:ok, pub_key_seq} = RSAPublicKey.as_sequence(pub_key)
     {:ok, :public_key.decrypt_public(cipher_bytes, pub_key_seq)}
@@ -158,9 +174,9 @@ defmodule RsaEx do
       {:ok, "Important message"}
   """
   @deprecated "Use decrypt/2 with tuple {:private_key, private_key} instead"
-  @spec decrypt(String.t, private_key) :: {atom, String.t}
+  @spec decrypt(String.t(), private_key) :: {atom, String.t()}
   def decrypt(cipher_msg, private_key) do
-    {:ok, cipher_bytes} = Base.url_decode64(cipher_msg)
+    {:ok, cipher_bytes} = Base.decode64(cipher_msg)
     {:ok, priv_key} = loads(private_key)
     {:ok, priv_key_seq} = RSAPrivateKey.as_sequence(priv_key)
     {:ok, :public_key.decrypt_private(cipher_bytes, priv_key_seq)}
@@ -170,14 +186,16 @@ defmodule RsaEx do
 
   defp loads(pem_string) do
     pem_entries = :public_key.pem_decode(pem_string)
-      validate_pem_length(pem_entries)
-      |> load_pem_entry
-      |> sort_key_tup
+
+    validate_pem_length(pem_entries)
+    |> load_pem_entry
+    |> sort_key_tup
   end
 
   defp load_pem_entry({:ok, pem_entry}) do
     load_pem_entry(pem_entry)
   end
+
   defp load_pem_entry(pem_entry) do
     {:ok, :public_key.pem_entry_decode(pem_entry)}
   end
@@ -193,20 +211,27 @@ defmodule RsaEx do
   defp sort_key_tup({:ok, key_tup}) do
     sort_key_tup(key_tup)
   end
+
   defp sort_key_tup(key_tup) do
     case elem(key_tup, 0) do
       :RSAPrivateKey ->
         {:ok, RsaEx.RSAPrivateKey.from_sequence(key_tup)}
+
       :RSAPublicKey ->
         {:ok, RsaEx.RSAPublicKey.from_sequence(key_tup)}
+
       x ->
-        {:error, "invalid argument, expected one of[ExPublicKey.RSAPublicKey, ExPublicKey.RSAPrivateKey], found: #{x}"}
+        {:error,
+         "invalid argument, expected one of[ExPublicKey.RSAPublicKey, ExPublicKey.RSAPrivateKey], found: #{
+           x
+         }"}
     end
   end
 
   defp url_encode64({:ok, bytes_to_encode}) do
     url_encode64(bytes_to_encode)
   end
+
   defp url_encode64(bytes_to_encode) do
     {:ok, Base.url_encode64(bytes_to_encode)}
   end
