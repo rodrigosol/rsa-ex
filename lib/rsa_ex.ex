@@ -94,7 +94,7 @@ defmodule RsaEx do
   def encrypt(message, {:public_key, public_key}) do
     {:ok, pub_key} = loads(public_key)
     {:ok, pub_key_seq} = RsaEx.RSAPublicKey.as_sequence(pub_key)
-    {:ok, :public_key.encrypt_public(message, pub_key_seq)} |> url_encode64
+    {:ok, :public_key.encrypt_public(message, pub_key_seq)} |> Base.encode64
   end
 
   @doc """
